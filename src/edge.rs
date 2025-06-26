@@ -1,6 +1,6 @@
-use std::{borrow::Cow, collections::HashSet, sync::Arc};
+use std::{collections::HashSet, sync::Arc};
 
-use crate::{node::NodeKey, utils::IntoSet, Request};
+use crate::{Request, node::NodeKey, utils::IntoSet};
 
 mod function;
 pub use function::EdgeFunction;

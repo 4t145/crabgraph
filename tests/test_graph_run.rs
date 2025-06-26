@@ -1,14 +1,11 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    },
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
 };
 
 use crabgraph::{
     Context, Graph, map,
-    node::{Node, NodeKey},
+    node::{IntoNode, Node, NodeKey},
     state::State,
     typed::json::Json,
 };
@@ -56,6 +53,16 @@ async fn test() -> anyhow::Result<()> {
         .call(context.new_request(Default::default()))
         .await?;
     println!("Call result: {:?}", call_result_2);
+    let mut super_graph = crate::Graph::<App>::new();
+    super_graph
+        .add_node("child", graph.into_node().then(increase_counter))
+        .add_edge(NodeKey::Start, "child")
+        .add_edge("child", NodeKey::End);
+    let super_graph = super_graph.compile()?;
+    let call_result_3 = super_graph
+        .call(context.new_request(Default::default()))
+        .await?;
+    println!("Call result: {:?}", call_result_3);
     Ok(())
 }
 

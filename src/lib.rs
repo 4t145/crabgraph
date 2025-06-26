@@ -20,6 +20,8 @@ pub mod request;
 pub mod state;
 pub mod typed;
 pub mod utils;
+pub mod ext;
+
 pub trait TransferObject: Sized + Serialize + DeserializeOwned + Send + Sync + 'static {}
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Context<S> {
@@ -210,7 +212,7 @@ where
                         .get(&node_key)
                         .filter(|e| !e.is_empty())
                         .ok_or_else(|| GraphError::MissingOutEdge(node_key.clone()))?;
-                    tracing::info!(%node_key, ?yield_state, "Node completed ");
+                    tracing::info!(%node_key, ?yield_state, "Node completed");
                     let request = Request {
                         state: yield_state.clone(),
                         context: request.context.clone(),

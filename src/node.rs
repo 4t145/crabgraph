@@ -1,10 +1,12 @@
-use std::{borrow::Cow, collections::HashSet, fmt::Display, ops::Deref, sync::Arc};
+use std::{borrow::Cow, fmt::Display, ops::Deref, sync::Arc};
 
 use futures::future::BoxFuture;
 
 use crate::{Request, state::State};
 mod function;
 pub use function::NodeFunction;
+mod sequence;
+pub use sequence::NodeSequence;
 pub trait Node<S>: Send + Sync + 'static {
     fn call(
         self: Arc<Self>,
@@ -12,13 +14,49 @@ pub trait Node<S>: Send + Sync + 'static {
     ) -> BoxFuture<'static, Result<State, crate::Error>>;
 }
 
+impl<S> dyn Node<S>
+where
+    S: Send + Sync + Clone + 'static,
+{
+    pub fn then<N, A>(self: Arc<Self>, node: N) -> NodeSequence<S>
+    where
+        N: IntoNode<S, A>,
+    {
+        NodeSequence::new(vec![self, node.into_node()])
+    }
+    pub fn then_sequence(self: Arc<Self>, mut sequence: NodeSequence<S>) -> NodeSequence<S> {
+        sequence.0 = vec![self].into_iter().chain(sequence.0).collect();
+        sequence
+    }
+}
+
 pub trait IntoNode<S, A> {
     fn into_node(self) -> Arc<dyn Node<S>>;
+}
+
+impl<S, N> IntoNode<S, ()> for Arc<N>
+where
+    N: Node<S>,
+{
+    fn into_node(self) -> Arc<dyn Node<S>> {
+        self
+    }
 }
 
 impl<S> IntoNode<S, ()> for Arc<dyn Node<S>> {
     fn into_node(self) -> Arc<dyn Node<S>> {
         self
+    }
+}
+
+pub enum ByArc {}
+
+impl<S, N> IntoNode<S, ByArc> for N
+where
+    N: Node<S>,
+{
+    fn into_node(self) -> Arc<dyn Node<S>> {
+        Arc::new(self) as Arc<dyn Node<S>>
     }
 }
 
