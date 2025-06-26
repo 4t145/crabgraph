@@ -1,10 +1,13 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicUsize, Ordering},
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 use crabgraph::{
-    Context, Graph,
+    Context, Graph, map,
     node::{Node, NodeKey},
     state::State,
     typed::json::Json,
@@ -29,11 +32,20 @@ async fn test() -> anyhow::Result<()> {
         .add_node(INCREASE_COUNTER, increase_counter)
         // edges
         .add_edge(ADD_LOG, [PRINT_STATE, NodeKey::End])
-        .add_edge(INCREASE_COUNTER, print_if_odd)
+        .add_edge(
+            INCREASE_COUNTER,
+            (
+                print_if_odd,
+                map! {
+                    "even" => PRINT_STATE,
+                    "odd" => NodeKey::End
+                },
+            ),
+        )
         .add_edge(INCREASE_COUNTER, ADD_LOG)
         .add_edge(NodeKey::Start, [PRINT_STATE, INCREASE_COUNTER])
         .add_edge(PRINT_STATE, NodeKey::End);
-    let graph = Arc::new(graph);
+    let graph = graph.compile()?;
     let call_result_1 = graph
         .clone()
         .call(context.new_request(Default::default()))
@@ -69,10 +81,6 @@ async fn print_state(state: State) -> Result<State, crabgraph::Error> {
 pub struct Index {
     index: usize,
 }
-fn print_if_odd(Json(Index { index }): Json<Index>) -> NodeKey {
-    if index % 2 == 1 {
-        PRINT_STATE
-    } else {
-        NodeKey::End
-    }
+fn print_if_odd(Json(Index { index }): Json<Index>) -> &'static str {
+    if index % 2 == 1 { "odd" } else { "even" }
 }

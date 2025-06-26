@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use futures::future::BoxFuture;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -16,6 +19,7 @@ pub mod node;
 pub mod request;
 pub mod state;
 pub mod typed;
+pub mod utils;
 pub trait TransferObject: Sized + Serialize + DeserializeOwned + Send + Sync + 'static {}
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Context<S> {
@@ -33,16 +37,6 @@ where
         }
     }
 }
-// pub trait Node<S> {
-//     type Input: State;
-//     type Output: State;
-//     type Error: std::error::Error + TransferObject;
-//     fn run(
-//         &self,
-//         state: Self::Input,
-//         context: Context,
-//     ) -> impl Future<Output = Result<Self::Output, Self::Error>> + Send + '_;
-// }
 
 pub type JsonValue = serde_json::Value;
 
@@ -71,6 +65,14 @@ pub enum GraphError {
     MissingOutEdge(NodeKey),
     #[error("Undefined node: {0}")]
     UndefinedNode(NodeKey),
+    #[error("Undefined route: {0}")]
+    UndefinedRoute(String),
+    #[error("Next node cannot be Start")]
+    PointToStart,
+    #[error("Empty edge ({description}) from {from}")]
+    EmptyEdge { from: NodeKey, description: String },
+    #[error("Graph cannot reach End node")]
+    UnreachableEndNode,
 }
 
 pub struct Graph<S> {
@@ -122,6 +124,55 @@ where
     ) -> &mut Self {
         self.nodes.insert(key.into(), node.into_node());
         self
+    }
+    pub fn check(&self) -> Result<(), GraphError> {
+        let mut checked = HashSet::new();
+        let mut next_to_check = HashSet::new();
+        next_to_check.insert(NodeKey::Start);
+        loop {
+            let mut new_next_to_check = HashSet::new();
+            for node_key in next_to_check {
+                if node_key == NodeKey::End {
+                    checked.insert(node_key);
+                    continue;
+                }
+                let edges = self
+                    .edges
+                    .get(&node_key)
+                    .filter(|e| !e.is_empty())
+                    .ok_or_else(|| GraphError::MissingOutEdge(node_key.clone()))?;
+                let mut neighbours = HashSet::new();
+                for edge in edges {
+                    let neighbours_for_edge = edge.neighbours();
+                    if neighbours_for_edge.is_empty() {
+                        return Err(GraphError::EmptyEdge {
+                            from: node_key.clone(),
+                            description: edge.description(),
+                        });
+                    }
+                    if neighbours_for_edge.contains(&NodeKey::Start) {
+                        return Err(GraphError::PointToStart);
+                    }
+                    neighbours.extend(neighbours_for_edge);
+                }
+                checked.insert(node_key.clone());
+                let unchecked_neighbours: HashSet<_> =
+                    neighbours.difference(&checked).cloned().collect();
+                if unchecked_neighbours.is_empty() {
+                    continue;
+                } else {
+                    new_next_to_check.extend(unchecked_neighbours);
+                }
+            }
+            next_to_check = new_next_to_check;
+            if next_to_check.is_empty() {
+                break;
+            }
+        }
+        if !checked.contains(&NodeKey::End) {
+            return Err(GraphError::UnreachableEndNode);
+        }
+        Ok(())
     }
     pub async fn run(self: Arc<Self>, request: Request<S>) -> Result<State, Error> {
         struct TaskCompleted {
@@ -195,6 +246,10 @@ where
             }
         }
         Ok(output_state)
+    }
+    pub fn compile(self) -> Result<Arc<Self>, GraphError> {
+        self.check()?;
+        Ok(Arc::new(self))
     }
 }
 
