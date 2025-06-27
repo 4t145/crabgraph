@@ -13,6 +13,18 @@ impl State {
             self.0.insert(k.clone(), v.clone());
         }
     }
+    pub fn from_json_value(value: JsonValue) -> State {
+        match value {
+            JsonValue::Object(map) => State(map),
+            _ => State::default()
+        }
+    }
+    pub fn from_typed<T>(value: T) -> Result<State, crate::Error> 
+    where T: Serialize
+    {
+        let json_value = serde_json::to_value(value).map_err(crate::Error::from)?;
+        Ok(State::from_json_value(json_value))
+    }
 }
 impl Deref for State {
     type Target = serde_json::value::Map<String, JsonValue>;
@@ -32,12 +44,13 @@ pub trait IntoState {
     fn into_state(self) -> Result<State, crate::Error>;
 }
 
-impl<T> IntoState for Result<T, crate::Error>
+impl<T, E> IntoState for Result<T, E>
 where
     T: IntoState,
+    crate::Error: From<E>,
 {
     fn into_state(self) -> Result<State, crate::Error> {
-        self.and_then(|s| s.into_state())
+        self.map_err(|e| e.into()).and_then(|s| s.into_state())
     }
 }
 

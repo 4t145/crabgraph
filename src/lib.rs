@@ -15,12 +15,12 @@ use crate::{
 };
 
 pub mod edge;
+pub mod ext;
 pub mod node;
 pub mod request;
 pub mod state;
 pub mod typed;
 pub mod utils;
-pub mod ext;
 
 pub trait TransferObject: Sized + Serialize + DeserializeOwned + Send + Sync + 'static {}
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -59,7 +59,11 @@ pub enum Error {
         error: Box<Error>,
         node_key: NodeKey,
     },
+    #[error("Node execution error: {0}")]
+    NodeExecutionError(#[from] NodeError),
 }
+
+pub type NodeError = Box<dyn std::error::Error + Send + Sync>;
 
 #[derive(Debug, Error)]
 pub enum GraphError {
