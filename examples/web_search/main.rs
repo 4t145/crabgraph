@@ -4,12 +4,19 @@ use std::sync::Arc;
 
 use crabgraph::{Context, request::FromRequest, state::State};
 use genai::{ModelIden, adapter::AdapterKind, resolver::AuthData};
+use pyo3::{
+    Py, PyAny, PyResult, Python,
+    ffi::PyObject,
+    types::{PyAnyMethods, PyDict},
+};
+use rs_gemini_genai::{GeminiContents, GenerateContentConfig, GenerateContentParameters};
 use serde::{Deserialize, Serialize};
 
-use crate::{graph::graph, model::Message, state::OverallState};
+use crate::{graph::graph, model::Message, py_genai_client::PyGenaiClient, state::OverallState};
 mod graph;
 mod model;
 mod prompts;
+mod py_genai_client;
 mod state;
 mod utils;
 // Graph
@@ -17,6 +24,7 @@ mod utils;
 pub struct App {
     config: Arc<Config>,
     llm: genai::Client,
+    py_llm: PyGenaiClient,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -55,6 +63,15 @@ pub async fn main() -> anyhow::Result<()> {
         number_of_initial_queries: 3,
         max_research_loops: 1,
     });
+    let api_key = std::env::var("GEMINI_API_KEY")?;
+    let py_llm = Python::with_gil(|py| {
+        let genai = py.import("google.genai")?;
+        let client_args = PyDict::new(py);
+        client_args.set_item("api_key", api_key)?;
+        let client = genai.getattr("Client")?.call((), Some(&client_args))?;
+        let client: Py<PyAny> = client.into();
+        PyResult::Ok(client)
+    })?;
     let app = App {
         config: config.clone(),
         llm: genai::Client::builder()
@@ -66,9 +83,13 @@ pub async fn main() -> anyhow::Result<()> {
                 }
             })
             .build(),
+        py_llm: PyGenaiClient {
+            client: Arc::new(py_llm),
+        },
     };
+
     let context = Context { state: app };
-    let graph = graph()?;
+    let graph = graph().await?;
     let output = graph
         .run(context.new_request(State::from_typed(OverallState {
             messages: vec![Message::human("请问中国境内目前有哪些生产ddr4内存的厂商？")],
@@ -78,6 +99,7 @@ pub async fn main() -> anyhow::Result<()> {
             reasoning_model: config.reflection_model.clone(),
         })?))
         .await?;
+
     tracing::info!(?output, "Graph execution completed");
     Ok(())
 }

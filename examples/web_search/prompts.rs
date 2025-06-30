@@ -1,5 +1,5 @@
 pub trait Prompt {
-    fn prompt(self) -> String;
+    fn format_prompt(self) -> String;
 }
 
 pub struct QueryWriter<'a> {
@@ -9,7 +9,7 @@ pub struct QueryWriter<'a> {
 }
 
 impl Prompt for QueryWriter<'_> {
-    fn prompt(self) -> String {
+    fn format_prompt(self) -> String {
         let QueryWriter {
             research_topic,
             number_queries,
@@ -43,6 +43,34 @@ Topic: What revenue grew more last year apple stock or the number of people buyi
 
 Context: {research_topic}
 "#
+        )
+    }
+}
+
+pub struct WebSearch<'a> {
+    pub research_topic: &'a str,
+    pub current_date: &'a str,
+}
+
+impl Prompt for WebSearch<'_> {
+    fn format_prompt(self) -> String {
+        let WebSearch {
+            research_topic,
+            current_date,
+        } = self;
+        format!(
+            r#"Conduct targeted Google Searches to gather the most recent, credible information on "{research_topic}" and synthesize it into a verifiable text artifact.
+
+Instructions:
+- Query should ensure that the most current information is gathered. The current date is {current_date}.
+- Conduct multiple, diverse searches to gather comprehensive information.
+- Consolidate key findings while meticulously tracking the source(s) for each specific piece of information.
+- The output should be a well-written summary or report based on your search findings. 
+- Only include the information found in the search results, don't make up any information.
+
+Research Topic:
+{research_topic}
+"#,
         )
     }
 }
