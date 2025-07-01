@@ -16,11 +16,12 @@ impl State {
     pub fn from_json_value(value: JsonValue) -> State {
         match value {
             JsonValue::Object(map) => State(map),
-            _ => State::default()
+            _ => State::default(),
         }
     }
-    pub fn from_typed<T>(value: T) -> Result<State, crate::Error> 
-    where T: Serialize
+    pub fn from_typed<T>(value: T) -> Result<State, crate::Error>
+    where
+        T: Serialize,
     {
         let json_value = serde_json::to_value(value).map_err(crate::Error::from)?;
         Ok(State::from_json_value(json_value))
@@ -59,3 +60,35 @@ impl IntoState for State {
         Ok(self)
     }
 }
+
+pub struct Annotated<T, M> {
+    value: T,
+    merge: M,
+}
+
+pub trait Merger<T> {
+    fn merge(prev: T, input: T) -> T;
+}
+pub trait Merge {
+    fn merge(prev: Self, input: Self) -> Self;
+}
+
+pub struct Replace;
+impl<T> Merger<T> for Replace {
+    fn merge(_prev: T, input: T) -> T {
+        input
+    }
+}
+
+impl<T, M> Merge for Annotated<T, M>
+where
+    M: Merger<T>,
+{
+    fn merge(prev: Self, input: Self) -> Self {
+        Annotated {
+            value: M::merge(prev.value, input.value),
+            merge: prev.merge,
+        }
+    }
+}
+

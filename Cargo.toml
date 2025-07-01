@@ -16,15 +16,16 @@ tracing = "0.1.41"
 axum = { version = "0.8" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 rig-core = "0.13"
+merge = "0.2.0"
 
 
 [dev-dependencies]
 anyhow = "1.0.98"
 askama = "0.14.0"
 chrono = "0.4.41"
-# genai = "0.3.5"
+# genai = { git = "https://github.com/jeremychone/rust-genai" }
 genai = { path = "../rust-genai" }
 schemars = "1.0.1"
-rs-gemini-genai = { git = "https://github.com/myanvoos/rs-gemini-genai.git" }
-pyo3 = { version = "0.25", features = ["auto-initialize", "abi3"] }
-pyo3-async-runtimes = { version = "0.25", features = ["tokio"] }
+# rs-gemini-genai = { git = "https://github.com/myanvoos/rs-gemini-genai.git" }
+# pyo3 = { version = "0.25", features = ["auto-initialize", "abi3"] }
+# pyo3-async-runtimes = { version = "0.25", features = ["tokio"] }
