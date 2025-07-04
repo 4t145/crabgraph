@@ -5,42 +5,41 @@ use serde::{Deserialize, Serialize};
 
 use crate::JsonValue;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(transparent)]
-pub struct State(pub serde_json::value::Map<String, JsonValue>);
+#[derive(Debug, Default)]
+pub struct State(pub tokio::sync::RwLock<serde_json::value::Map<String, JsonValue>>);
 impl State {
-    pub fn merge(&mut self, other: &State) {
-        for (k, v) in &other.0 {
-            self.0.insert(k.clone(), v.clone());
-        }
-    }
-    pub fn from_json_value(value: JsonValue) -> State {
-        match value {
-            JsonValue::Object(map) => State(map),
-            _ => State::default(),
-        }
-    }
-    pub fn from_typed<T>(value: T) -> Result<State, crate::Error>
-    where
-        T: Serialize,
-    {
-        let json_value = serde_json::to_value(value).map_err(crate::Error::from)?;
-        Ok(State::from_json_value(json_value))
-    }
+    // pub fn merge(&mut self, other: &State) {
+    //     for (k, v) in &other.0 {
+    //         self.0.insert(k.clone(), v.clone());
+    //     }
+    // }
+    // pub fn from_json_value(value: JsonValue) -> State {
+    //     match value {
+    //         JsonValue::Object(map) => State(map),
+    //         _ => State::default(),
+    //     }
+    // }
+    // pub fn from_typed<T>(value: T) -> Result<State, crate::Error>
+    // where
+    //     T: Serialize,
+    // {
+    //     let json_value = serde_json::to_value(value).map_err(crate::Error::from)?;
+    //     Ok(State::from_json_value(json_value))
+    // }
 }
-impl Deref for State {
-    type Target = serde_json::value::Map<String, JsonValue>;
+// impl Deref for State {
+//     type Target = serde_json::value::Map<String, JsonValue>;
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+//     fn deref(&self) -> &Self::Target {
+//         &self.0
+//     }
+// }
 
-impl DerefMut for State {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
+// impl DerefMut for State {
+//     fn deref_mut(&mut self) -> &mut Self::Target {
+//         &mut self.0
+//     }
+// }
 
 pub trait IntoStateModification {
     fn into_state(self) -> Result<SendDynModification<State>, crate::Error>;
@@ -92,4 +91,3 @@ where
         }
     }
 }
-
