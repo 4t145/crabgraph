@@ -2,7 +2,7 @@ use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{
     request::{FromRequest, Request},
-    state::IntoState,
+    state::IntoStateModification,
 };
 
 pub struct Json<T>(pub T);
@@ -15,7 +15,7 @@ impl<S, T: DeserializeOwned> FromRequest<S> for Json<T> {
     }
 }
 
-impl<T: Serialize> IntoState for Json<T> {
+impl<T: Serialize> IntoStateModification for Json<T> {
     fn into_state(self) -> Result<crate::state::State, crate::Error> {
         let value = serde_json::to_value(self.0)?;
         let map = value.as_object().cloned().unwrap_or_default();

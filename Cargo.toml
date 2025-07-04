@@ -16,7 +16,8 @@ tracing = "0.1.41"
 axum = { version = "0.8" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 rig-core = "0.13"
-merge = "0.2.0"
+# modify-core = { git = "https://github.com/4t145/modify.git" }
+modify-core = { path = "../modify/crates/modify" }
 
 
 [dev-dependencies]

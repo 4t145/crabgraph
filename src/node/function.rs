@@ -5,7 +5,7 @@ use futures::future::BoxFuture;
 use crate::{
     node::{IntoNode, Node},
     request::{FromRequest, Request},
-    state::{IntoState, State},
+    state::{IntoStateModification, State},
 };
 
 pub struct NodeFunction<F>(pub F);
@@ -35,7 +35,7 @@ macro_rules! impl_for {
         impl<$( $T, )* Fut, Output, F, S> IntoNode<S, AsyncFunctionAdapter<($($T,)*), Fut, Output>> for F
         where F: Fn($($T,)*) -> Fut + Clone + Send + Sync + 'static,
         Fut: Future<Output = Output> + Send + 'static,
-        Output: IntoState + Send + 'static,
+        Output: IntoStateModification + Send + 'static,
         S: Send + Sync + Clone + 'static,
         $( $T: FromRequest<S> + Send + 'static, )*
         {
@@ -49,9 +49,9 @@ macro_rules! impl_for {
                         )*
                         let fut = f($($T,)*);
                         let output: Output = fut.await;
-                        let result: Result<State, crate::Error> = output.into_state();
+                        let result: Result<modify::SendDynModification<State>, crate::Error> = output.into_state();
                         result
-                    }) as BoxFuture<'static, Result<State, crate::Error>>
+                    }) as BoxFuture<'static, Result<modify::SendDynModification<State>, crate::Error>>
                 })) as std::sync::Arc<dyn Node<S>>
             }
         }

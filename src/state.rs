@@ -1,5 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
+use modify::SendDynModification;
 use serde::{Deserialize, Serialize};
 
 use crate::JsonValue;
@@ -41,25 +42,25 @@ impl DerefMut for State {
     }
 }
 
-pub trait IntoState {
-    fn into_state(self) -> Result<State, crate::Error>;
+pub trait IntoStateModification {
+    fn into_state(self) -> Result<SendDynModification<State>, crate::Error>;
 }
 
-impl<T, E> IntoState for Result<T, E>
+impl<T, E> IntoStateModification for Result<T, E>
 where
-    T: IntoState,
+    T: IntoStateModification,
     crate::Error: From<E>,
 {
-    fn into_state(self) -> Result<State, crate::Error> {
+    fn into_state(self) -> Result<SendDynModification<State>, crate::Error> {
         self.map_err(|e| e.into()).and_then(|s| s.into_state())
     }
 }
 
-impl IntoState for State {
-    fn into_state(self) -> Result<State, crate::Error> {
-        Ok(self)
-    }
-}
+// impl IntoStateModification for State {
+//     fn into_state(self) -> Result<SendDynModification<State>, crate::Error> {
+//         Ok(self)
+//     }
+// }
 
 pub struct Annotated<T, M> {
     value: T,
