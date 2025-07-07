@@ -11,7 +11,7 @@ pub trait Node<S>: Send + Sync + 'static {
     fn call(
         self: Arc<Self>,
         request: Request<S>,
-    ) -> BoxFuture<'static, Result<modify::SendDynModification<State>, crate::Error>>;
+    ) -> BoxFuture<'static, Result<(), crate::Error>>;
 }
 
 impl<S> dyn Node<S>

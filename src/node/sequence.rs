@@ -31,25 +31,19 @@ where
     fn call(
         self: Arc<Self>,
         request: crate::Request<S>,
-    ) -> futures::future::BoxFuture<'static, Result<crate::state::State, crate::Error>> {
+    ) -> futures::future::BoxFuture<'static, Result<(), crate::Error>> {
         let nodes = self.0.clone();
         Box::pin(async move {
             let context = request.context;
-            let mut state = request.state;
-            let len = nodes.len();
+            let state = request.state;
             for (idx, node) in nodes.into_iter().enumerate() {
                 let request = Request {
                     context: context.clone(),
                     state: state.clone(),
                 };
-                let step_state = node.call(request).await?;
-                if idx == len - 1 {
-                    return Ok(step_state);
-                } else {
-                    state = Arc::new(step_state);
-                }
+                node.call(request).await?;
             }
-            Ok(state.as_ref().clone())
+            Ok(())
         })
     }
 }

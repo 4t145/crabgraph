@@ -5,7 +5,7 @@ use crate::{Context, state::State};
 #[derive(Debug, Clone, Default)]
 pub struct Request<S> {
     pub context: Context<S>,
-    pub state: Arc<State>,
+    pub state: State,
 }
 
 pub trait FromRequest<S>: Sized {
@@ -13,12 +13,6 @@ pub trait FromRequest<S>: Sized {
 }
 
 impl<S> FromRequest<S> for State {
-    fn from_request(request: &Request<S>) -> Result<Self, crate::Error> {
-        Ok(request.state.as_ref().clone())
-    }
-}
-
-impl<S> FromRequest<S> for Arc<State> {
     fn from_request(request: &Request<S>) -> Result<Self, crate::Error> {
         Ok(request.state.clone())
     }

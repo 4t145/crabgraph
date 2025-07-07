@@ -1,12 +1,12 @@
-use std::ops::{Deref, DerefMut};
+use std::{ops::{Deref, DerefMut}, sync::Arc};
 
 use modify::SendDynModification;
 use serde::{Deserialize, Serialize};
 
 use crate::JsonValue;
 
-#[derive(Debug, Default)]
-pub struct State(pub tokio::sync::RwLock<serde_json::value::Map<String, JsonValue>>);
+#[derive(Debug, Default, Clone)]
+pub struct State(pub Arc<tokio::sync::RwLock<serde_json::value::Map<String, JsonValue>>>);
 impl State {
     // pub fn merge(&mut self, other: &State) {
     //     for (k, v) in &other.0 {

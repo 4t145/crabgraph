@@ -36,7 +36,7 @@ where
     pub fn new_request(&self, state: State) -> Request<S> {
         Request {
             context: self.clone(),
-            state: Arc::new(state),
+            state,
         }
     }
 }
@@ -183,18 +183,18 @@ where
     }
     pub async fn run(self: Arc<Self>, request: Request<S>) -> Result<State, Error> {
         struct TaskCompleted {
-            result: Result<modify::SendDynModification<State>, Error>,
+            result: Result<(), Error>,
             node_key: NodeKey,
         }
         let mut task_set = tokio::task::JoinSet::new();
         task_set.spawn(futures::future::ready(
             // start trigger task
             TaskCompleted {
-                result: Ok(().into_send_dyn()),
+                result: Ok(()),
                 node_key: NodeKey::Start,
             },
         ));
-        let mut output_state = State::default();
+        let mut state = State::default();
         loop {
             enum Event {
                 TaskCompleted(TaskCompleted),
@@ -217,10 +217,10 @@ where
                         .get(&node_key)
                         .filter(|e| !e.is_empty())
                         .ok_or_else(|| GraphError::MissingOutEdge(node_key.clone()))?;
-                    modification.modify(&mut output_state);
+                    modification.modify(&mut state);
                     // tracing::info!(%node_key, ?yield_state, "Node completed");
                     let request = Request {
-                        state: Arc::new(output_state.clone()),
+                        state: state.clone(),
                         context: request.context.clone(),
                     };
                     for e in edges {
@@ -238,7 +238,7 @@ where
                                     GraphError::UndefinedNode(to_node_key.clone())
                                 })?;
                                 let fut = node.clone().call(Request {
-                                    state: Arc::new(output_state.clone()),
+                                    state: state.clone(),
                                     context: request.context.clone(),
                                 });
                                 let node_key = to_node_key.clone();
@@ -252,7 +252,7 @@ where
                 }
             }
         }
-        Ok(output_state)
+        Ok(state)
     }
     pub fn compile(self) -> Result<Arc<Self>, GraphError> {
         self.check()?;

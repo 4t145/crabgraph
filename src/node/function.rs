@@ -49,8 +49,11 @@ macro_rules! impl_for {
                         )*
                         let fut = f($($T,)*);
                         let output: Output = fut.await;
-                        let result: Result<modify::SendDynModification<State>, crate::Error> = output.into_state();
-                        result
+                        let result: modify::SendDynModification<JsonObject> = output.into_state()?;
+                        let mut wg = request.state.read().await;
+                        result.modify(&mut wg);
+                        drop(wg);
+                        Ok(())
                     }) as BoxFuture<'static, Result<modify::SendDynModification<State>, crate::Error>>
                 })) as std::sync::Arc<dyn Node<S>>
             }
