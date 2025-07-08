@@ -1,13 +1,26 @@
-use std::{ops::{Deref, DerefMut}, sync::Arc};
+use std::sync::Arc;
 
-use modify::SendDynModification;
-use serde::{Deserialize, Serialize};
+use modify::{Modification, SendDynModification};
 
-use crate::JsonValue;
+pub trait View<T> {
+    type Data;
+    fn view(self, target: &T) -> Self::Data;
+}
 
 #[derive(Debug, Default, Clone)]
-pub struct State(pub Arc<tokio::sync::RwLock<serde_json::value::Map<String, JsonValue>>>);
+pub struct State(pub Arc<tokio::sync::RwLock<crate::JsonObject>>);
 impl State {
+    pub async fn apply_modification<M>(&self, modification: M)
+    where
+        M: Modification<crate::JsonObject>,
+    {
+        let mut state = self.0.write().await;
+        modification.modify(&mut state);
+    }
+    pub async fn fetch_view<V: View<crate::JsonObject>>(&self, view: V) -> V::Data {
+        let state = self.0.read().await;
+        view.view(&state)
+    }
     // pub fn merge(&mut self, other: &State) {
     //     for (k, v) in &other.0 {
     //         self.0.insert(k.clone(), v.clone());
@@ -19,7 +32,7 @@ impl State {
     //         _ => State::default(),
     //     }
     // }
-    // pub fn from_typed<T>(value: T) -> Result<State, crate::Error>
+    // pub fn from_typed<T>(value: T) -> Result<(), crate::Error>
     // where
     //     T: Serialize,
     // {

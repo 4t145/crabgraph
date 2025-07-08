@@ -4,7 +4,6 @@ use std::{
 };
 
 use futures::future::BoxFuture;
-use modify::{Modification, ModificationExt, SendDynModification};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use thiserror::Error;
 
@@ -42,7 +41,7 @@ where
 }
 
 pub type JsonValue = serde_json::Value;
-
+pub type JsonObject = serde_json::Map<String, JsonValue>;
 pub struct Response {
     pub state: JsonValue,
 }
@@ -181,7 +180,7 @@ where
         }
         Ok(())
     }
-    pub async fn run(self: Arc<Self>, request: Request<S>) -> Result<State, Error> {
+    pub async fn run(self: Arc<Self>, request: Request<S>) -> Result<(), Error> {
         struct TaskCompleted {
             result: Result<(), Error>,
             node_key: NodeKey,
@@ -194,7 +193,6 @@ where
                 node_key: NodeKey::Start,
             },
         ));
-        let mut state = State::default();
         loop {
             enum Event {
                 TaskCompleted(TaskCompleted),
@@ -211,36 +209,28 @@ where
             };
             match event {
                 Event::TaskCompleted(TaskCompleted { result, node_key }) => {
-                    let modification = result?;
+                    result?;
                     let edges = self
                         .edges
                         .get(&node_key)
                         .filter(|e| !e.is_empty())
                         .ok_or_else(|| GraphError::MissingOutEdge(node_key.clone()))?;
-                    modification.modify(&mut state);
                     // tracing::info!(%node_key, ?yield_state, "Node completed");
-                    let request = Request {
-                        state: state.clone(),
-                        context: request.context.clone(),
-                    };
+                    let request = request.clone();
                     for e in edges {
                         for to_node_key in
-                            e.next_nodes(&request)
+                            e.next_nodes(&request).await
                                 .map_err(|e| Error::ResolveNextNodesError {
                                     error: Box::new(e),
                                     node_key: node_key.clone(),
                                 })?
                         {
                             if to_node_key == NodeKey::End {
-                                
                             } else {
                                 let node = self.nodes.get(&to_node_key).ok_or_else(|| {
                                     GraphError::UndefinedNode(to_node_key.clone())
                                 })?;
-                                let fut = node.clone().call(Request {
-                                    state: state.clone(),
-                                    context: request.context.clone(),
-                                });
+                                let fut = node.clone().call(request.clone());
                                 let node_key = to_node_key.clone();
                                 task_set.spawn(async move {
                                     let result = fut.await;
@@ -252,7 +242,7 @@ where
                 }
             }
         }
-        Ok(state)
+        Ok(())
     }
     pub fn compile(self) -> Result<Arc<Self>, GraphError> {
         self.check()?;
@@ -260,11 +250,11 @@ where
     }
 }
 
-// impl<S> Node<S> for Graph<S>
-// where
-//     S: Clone + Send + Sync + 'static,
-// {
-//     fn call(self: Arc<Self>, request: Request<S>) -> BoxFuture<'static, Result<SendDynModification<State>, Error>> {
-//         Box::pin(async move { self.run(request).await })
-//     }
-// }
+impl<S> Node<S> for Graph<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    fn call(self: Arc<Self>, request: Request<S>) -> BoxFuture<'static, Result<(), Error>> {
+        Box::pin(async move { self.run(request).await })
+    }
+}

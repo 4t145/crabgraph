@@ -4,15 +4,20 @@ use crate::{Request, node::NodeKey, utils::IntoSet};
 
 mod function;
 pub use function::EdgeFunction;
+use futures::future::{BoxFuture, ready};
 pub trait Edge<S>: Send + Sync + 'static {
-    fn next_nodes(&self, request: &Request<S>) -> Result<HashSet<NodeKey>, crate::Error>;
+    fn next_nodes(&self, request: &Request<S>)
+    -> BoxFuture<Result<HashSet<NodeKey>, crate::Error>>;
     fn neighbours(&self) -> HashSet<NodeKey>;
     fn description(&self) -> String;
 }
 
 impl<S> Edge<S> for NodeKey {
-    fn next_nodes(&self, _request: &Request<S>) -> Result<HashSet<NodeKey>, crate::Error> {
-        Ok(HashSet::from([self.clone()]))
+    fn next_nodes(
+        &self,
+        _request: &Request<S>,
+    ) -> BoxFuture<Result<HashSet<NodeKey>, crate::Error>> {
+        Box::pin(ready(Ok(HashSet::from([self.clone()]))))
     }
     fn neighbours(&self) -> HashSet<NodeKey> {
         HashSet::from([self.clone()])
@@ -23,8 +28,11 @@ impl<S> Edge<S> for NodeKey {
 }
 
 impl<S> Edge<S> for HashSet<NodeKey> {
-    fn next_nodes(&self, _request: &Request<S>) -> Result<HashSet<NodeKey>, crate::Error> {
-        Ok(self.clone())
+    fn next_nodes(
+        &self,
+        _request: &Request<S>,
+    ) -> BoxFuture<Result<HashSet<NodeKey>, crate::Error>> {
+        Box::pin(ready(Ok(self.clone())))
     }
     fn neighbours(&self) -> HashSet<NodeKey> {
         self.clone()

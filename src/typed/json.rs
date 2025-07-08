@@ -1,11 +1,33 @@
-use serde::{Serialize, de::DeserializeOwned};
+use std::marker::PhantomData;
 
-use crate::{
-    request::{FromRequest, Request},
-    state::IntoStateModification,
-};
+use serde::de::DeserializeOwned;
 
-// pub struct Json<T>(pub T);
+use crate::state::View;
+
+pub struct TypedState<T>(PhantomData<fn() -> T>);
+
+impl<T> TypedState<T> {
+    pub const fn new() -> Self {
+        TypedState(PhantomData)
+    }
+}
+
+impl<T> Default for TypedState<T> {
+    fn default() -> Self {
+        TypedState::new()
+    }
+}
+
+impl<T> View<crate::JsonObject> for TypedState<T>
+where
+    T: DeserializeOwned,
+{
+    type Data = Result<T, crate::Error>;
+    fn view(self, target: &crate::JsonObject) -> Self::Data {
+        serde_json::from_value(serde_json::Value::Object(target.clone()))
+            .map_err(crate::Error::SerdeError)
+    }
+}
 
 // impl<S, T: DeserializeOwned> FromRequest<S> for Json<T> {
 //     fn from_request(request: &Request<S>) -> Result<Self, crate::Error> {

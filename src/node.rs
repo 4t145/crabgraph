@@ -2,16 +2,13 @@ use std::{borrow::Cow, fmt::Display, ops::Deref, sync::Arc};
 
 use futures::future::BoxFuture;
 
-use crate::{Request, state::State};
+use crate::Request;
 mod function;
 pub use function::NodeFunction;
 mod sequence;
 pub use sequence::NodeSequence;
 pub trait Node<S>: Send + Sync + 'static {
-    fn call(
-        self: Arc<Self>,
-        request: Request<S>,
-    ) -> BoxFuture<'static, Result<(), crate::Error>>;
+    fn call(self: Arc<Self>, request: Request<S>) -> BoxFuture<'static, Result<(), crate::Error>>;
 }
 
 impl<S> dyn Node<S>

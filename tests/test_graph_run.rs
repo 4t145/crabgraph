@@ -4,12 +4,13 @@ use std::sync::{
 };
 
 use crabgraph::{
-    Context, Graph, map,
+    Context, Graph, JsonObject, map,
     node::{IntoNode, Node, NodeKey},
     state::State,
-    typed::json::Json,
+    typed::json::TypedState,
 };
 
+use modify::{ModificationLayerExt, apply, call};
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Default)]
 pub struct App {
@@ -66,28 +67,51 @@ async fn test() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn increase_counter(
-    context: Context<App>,
-    mut state: State,
-) -> Result<State, crabgraph::Error> {
+async fn increase_counter(context: Context<App>, state: State) -> Result<(), crabgraph::Error> {
     let index = context.state.countor.fetch_add(1, Ordering::SeqCst);
-    state.insert("index".to_string(), index.into());
-    Ok(state)
+    state
+        .apply_modification(
+            apply(call(|object: &mut JsonObject| {
+                if !object.contains_key("index") {
+                    object.insert("index".to_string(), serde_json::json!(null));
+                }
+            }))
+            .then(modify::index("index"))
+            .then_apply(modify::set(serde_json::json!(index))),
+        )
+        .await;
+    Ok(())
 }
 
-async fn add_log(mut state: State) -> Result<State, crabgraph::Error> {
-    state.insert("__log".to_string(), serde_json::json!("hello world"));
-    Ok(state)
+async fn add_log(state: State) -> Result<(), crabgraph::Error> {
+    state
+        .apply_modification(
+            apply(call(|object: &mut JsonObject| {
+                if !object.contains_key("__log") {
+                    object.insert("__log".to_string(), serde_json::json!(null));
+                }
+            }))
+            .then(modify::index("__log"))
+            .then_apply(modify::set(serde_json::json!("hello world"))),
+        )
+        .await;
+    Ok(())
 }
 
-async fn print_state(state: State) -> Result<State, crabgraph::Error> {
+async fn print_state(state: State) -> Result<(), crabgraph::Error> {
     println!("State: {:?}", state);
-    Ok(state)
+    Ok(())
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Index {
     index: usize,
 }
-fn print_if_odd(Json(Index { index }): Json<Index>) -> &'static str {
+async fn print_if_odd(state: State) -> &'static str {
+    let index = state
+        .fetch_view(TypedState::<Index>::new())
+        .await
+        .unwrap_or_default()
+        .index;
+
     if index % 2 == 1 { "odd" } else { "even" }
 }

@@ -5,19 +5,18 @@ use futures::future::BoxFuture;
 use crate::{
     node::{IntoNode, Node},
     request::{FromRequest, Request},
-    state::{IntoStateModification, State},
 };
 
 pub struct NodeFunction<F>(pub F);
 
 impl<F, S> Node<S> for NodeFunction<F>
 where
-    F: Fn(Request<S>) -> BoxFuture<'static, Result<State, crate::Error>> + Send + Sync + 'static,
+    F: Fn(Request<S>) -> BoxFuture<'static, Result<(), crate::Error>> + Send + Sync + 'static,
 {
     fn call(
         self: std::sync::Arc<Self>,
         request: Request<S>,
-    ) -> BoxFuture<'static, Result<State, crate::Error>> {
+    ) -> BoxFuture<'static, Result<(), crate::Error>> {
         (self.0)(request)
     }
 }
@@ -32,10 +31,9 @@ macro_rules! impl_for {
         impl_for!(@unfold [] [$($T)*]);
     };
     (@impl $($T: ident)*) => {
-        impl<$( $T, )* Fut, Output, F, S> IntoNode<S, AsyncFunctionAdapter<($($T,)*), Fut, Output>> for F
+        impl<$( $T, )* Fut, F, S> IntoNode<S, AsyncFunctionAdapter<($($T,)*), Fut, Result<(), crate::Error>>> for F
         where F: Fn($($T,)*) -> Fut + Clone + Send + Sync + 'static,
-        Fut: Future<Output = Output> + Send + 'static,
-        Output: IntoStateModification + Send + 'static,
+        Fut: Future<Output = Result<(), crate::Error>> + Send + 'static,
         S: Send + Sync + Clone + 'static,
         $( $T: FromRequest<S> + Send + 'static, )*
         {
@@ -48,13 +46,9 @@ macro_rules! impl_for {
                             let $T = $T::from_request(&request)?;
                         )*
                         let fut = f($($T,)*);
-                        let output: Output = fut.await;
-                        let result: modify::SendDynModification<JsonObject> = output.into_state()?;
-                        let mut wg = request.state.read().await;
-                        result.modify(&mut wg);
-                        drop(wg);
+                        fut.await?;
                         Ok(())
-                    }) as BoxFuture<'static, Result<modify::SendDynModification<State>, crate::Error>>
+                    }) as BoxFuture<'static, Result<(), crate::Error>>
                 })) as std::sync::Arc<dyn Node<S>>
             }
         }

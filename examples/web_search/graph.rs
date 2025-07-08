@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use crabgraph::{Graph, NodeError, node::NodeKey, state::State, typed::json::Json};
+use crabgraph::{Graph, NodeError, node::NodeKey, state::State, typed::json::TypedState};
 use genai::chat::{ChatMessage, ChatOptions, ChatRequest, JsonSpec, Tool};
 
 use serde::{Deserialize, Serialize};
@@ -23,10 +23,10 @@ pub struct SearchQueryList {
 }
 
 async fn generate_query(
-    Json(state): Json<OverallState>,
+    TypedState(state): TypedState<OverallState>,
     config: Arc<Config>,
     llm: genai::Client,
-) -> Result<Json<QueryGenerationState>, NodeError> {
+) -> Result<TypedState<QueryGenerationState>, NodeError> {
     let number_queries = state
         .initial_search_query_count
         .unwrap_or(config.number_of_initial_queries);
@@ -52,11 +52,11 @@ async fn generate_query(
         .into_first_text()
         .unwrap_or_default();
     let response = serde_json::from_str::<QueryGenerationState>(&response)?;
-    Ok(Json(response))
+    Ok(TypedState(response))
 }
 
 async fn web_research(
-    Json(state): Json<QueryGenerationState>,
+    TypedState(state): TypedState<QueryGenerationState>,
     llm: genai::Client,
     config: Arc<Config>,
 ) -> Result<OverallState, NodeError> {
