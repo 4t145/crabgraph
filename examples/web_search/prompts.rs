@@ -74,3 +74,84 @@ Research Topic:
         )
     }
 }
+
+pub struct Reflection<'a> {
+    pub research_topic: &'a str,
+    pub summaries: &'a str,
+}
+
+impl Prompt for Reflection<'_> {
+    fn format_prompt(self) -> String {
+        let Reflection {
+            research_topic,
+            summaries,
+        } = self;
+        format!(
+            r#"You are an expert research assistant analyzing summaries about "{research_topic}".
+
+Instructions:
+- Identify knowledge gaps or areas that need deeper exploration and generate a follow-up query. (1 or multiple).
+- If provided summaries are sufficient to answer the user's question, don't generate a follow-up query.
+- If there is a knowledge gap, generate a follow-up query that would help expand your understanding.
+- Focus on technical details, implementation specifics, or emerging trends that weren't fully covered.
+
+Requirements:
+- Ensure the follow-up query is self-contained and includes necessary context for web search.
+
+Output Format:
+- Format your response as a JSON object with these exact keys:
+   - "is_sufficient": true or false
+   - "knowledge_gap": Describe what information is missing or needs clarification
+   - "follow_up_queries": Write a specific question to address this gap
+
+Example:
+```json
+{{
+    "is_sufficient": true, // or false
+    "knowledge_gap": "The summary lacks information about performance metrics and benchmarks", // "" if is_sufficient is true
+    "follow_up_queries": ["What are typical performance benchmarks and metrics used to evaluate [specific technology]?"] // [] if is_sufficient is true
+}}
+```
+
+Reflect carefully on the Summaries to identify knowledge gaps and produce a follow-up query. Then, produce your output following this JSON format:
+
+Summaries:
+{summaries}
+"#,
+        )
+    }
+}
+
+pub struct AnswerInstructions<'a> {
+    pub research_topic: &'a str,
+    pub current_date: &'a str,
+    pub summaries: &'a str,
+}
+
+impl Prompt for AnswerInstructions<'_> {
+    fn format_prompt(self) -> String {
+        let AnswerInstructions {
+            research_topic,
+            current_date,
+            summaries,
+        } = self;
+        format!(
+            r#"Generate a high-quality answer to the user's question based on the provided summaries.
+
+Instructions:
+- The current date is {current_date}.
+- You are the final step of a multi-step research process, don't mention that you are the final step. 
+- You have access to all the information gathered from the previous steps.
+- You have access to the user's question.
+- Generate a high-quality answer to the user's question based on the provided summaries and the user's question.
+- Include the sources you used from the Summaries in the answer correctly, use markdown format (e.g. [apnews](https://vertexaisearch.cloud.google.com/id/1-0)). THIS IS A MUST.
+
+User Context:
+- {research_topic}
+
+Summaries:
+{summaries}
+"#,
+        )
+    }
+}

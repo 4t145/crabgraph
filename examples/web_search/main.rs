@@ -1,15 +1,8 @@
-// reference: git@github.com:google-gemini/gemini-fullstack-langgraph-quickstart.git
-
 use std::sync::Arc;
 
-use crabgraph::{Context, request::FromRequest, state::State};
+use crabgraph::{Context, request::FromRequest, state::State, typed::json::JsonValueView};
 use genai::{ModelIden, adapter::AdapterKind, resolver::AuthData};
-// use pyo3::{
-//     Py, PyAny, PyResult, Python,
-//     ffi::PyObject,
-//     types::{PyAnyMethods, PyDict},
-// };
-// use rs_gemini_genai::{GeminiContents, GenerateContentConfig, GenerateContentParameters};
+
 use serde::{Deserialize, Serialize};
 
 use crate::{graph::graph, model::Message, state::OverallState};
@@ -77,16 +70,17 @@ pub async fn main() -> anyhow::Result<()> {
 
     let context = Context { state: app };
     let graph = graph().await?;
-    let output = graph
-        .run(context.new_request(State::from_typed(OverallState {
-            messages: vec![Message::human("请问中国境内目前有哪些生产ddr4内存的厂商？")],
-            initial_search_query_count: Some(config.number_of_initial_queries),
-            max_research_loops: Some(config.max_research_loops),
-            research_loop_count: Some(0),
-            reasoning_model: config.reflection_model.clone(),
-        })?))
-        .await?;
-
-    tracing::info!(?output, "Graph execution completed");
+    let request = context.new_request(State::from_typed(OverallState {
+        messages: vec![Message::human("请问中国境内目前有哪些生产ddr4内存的厂商？")],
+        initial_search_query_count: config.number_of_initial_queries,
+        max_research_loops: config.max_research_loops,
+        research_loop_count: 0,
+        reasoning_model: config.reflection_model.clone(),
+        ..Default::default()
+    })?);
+    graph.run(request.clone()).await?;
+    let result = request.state.fetch_view(JsonValueView).await;
+    let value_to_string_pretty = serde_json::to_string_pretty(&result)?;
+    tracing::info!("Graph execution completed {value_to_string_pretty}");
     Ok(())
 }

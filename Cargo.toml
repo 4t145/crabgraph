@@ -18,6 +18,7 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 rig-core = "0.13"
 # modify-core = { git = "https://github.com/4t145/modify.git" }
 modify-core = { path = "../modify/crates/modify" }
+modify-json = { path = "../modify/crates/modify-json" }
 
 
 [dev-dependencies]
@@ -25,8 +26,8 @@ anyhow = "1.0.98"
 askama = "0.14.0"
 chrono = "0.4.41"
 # genai = { git = "https://github.com/jeremychone/rust-genai" }
-genai = { path = "../rust-genai" }
-schemars = "1.0.1"
+genai = { git = "https://github.com/jeremychone/rust-genai.git" }
+schemars = "1"
 # rs-gemini-genai = { git = "https://github.com/myanvoos/rs-gemini-genai.git" }
 # pyo3 = { version = "0.25", features = ["auto-initialize", "abi3"] }
 # pyo3-async-runtimes = { version = "0.25", features = ["tokio"] }

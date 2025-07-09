@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
 use modify::{Modification, SendDynModification};
+use serde::Serialize;
+
+use crate::{JsonValue, request::FromRequest};
 
 pub trait View<T> {
     type Data;
@@ -26,19 +29,19 @@ impl State {
     //         self.0.insert(k.clone(), v.clone());
     //     }
     // }
-    // pub fn from_json_value(value: JsonValue) -> State {
-    //     match value {
-    //         JsonValue::Object(map) => State(map),
-    //         _ => State::default(),
-    //     }
-    // }
-    // pub fn from_typed<T>(value: T) -> Result<(), crate::Error>
-    // where
-    //     T: Serialize,
-    // {
-    //     let json_value = serde_json::to_value(value).map_err(crate::Error::from)?;
-    //     Ok(State::from_json_value(json_value))
-    // }
+    pub fn from_json_value(value: JsonValue) -> State {
+        match value {
+            JsonValue::Object(map) => State(Arc::new(tokio::sync::RwLock::new(map))),
+            _ => State::default(),
+        }
+    }
+    pub fn from_typed<T>(value: T) -> Result<State, crate::Error>
+    where
+        T: Serialize,
+    {
+        let json_value = serde_json::to_value(value).map_err(crate::Error::from)?;
+        Ok(State::from_json_value(json_value))
+    }
 }
 // impl Deref for State {
 //     type Target = serde_json::value::Map<String, JsonValue>;

@@ -67,7 +67,7 @@ async fn test() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn increase_counter(context: Context<App>, state: State) -> Result<(), crabgraph::Error> {
+async fn increase_counter(context: Context<App>, state: State) -> Result<(), crabgraph::NodeError> {
     let index = context.state.countor.fetch_add(1, Ordering::SeqCst);
     state
         .apply_modification(
@@ -83,7 +83,7 @@ async fn increase_counter(context: Context<App>, state: State) -> Result<(), cra
     Ok(())
 }
 
-async fn add_log(state: State) -> Result<(), crabgraph::Error> {
+async fn add_log(state: State) -> Result<(), crabgraph::NodeError> {
     state
         .apply_modification(
             apply(call(|object: &mut JsonObject| {
@@ -98,7 +98,7 @@ async fn add_log(state: State) -> Result<(), crabgraph::Error> {
     Ok(())
 }
 
-async fn print_state(state: State) -> Result<(), crabgraph::Error> {
+async fn print_state(state: State) -> Result<(), crabgraph::NodeError> {
     println!("State: {:?}", state);
     Ok(())
 }

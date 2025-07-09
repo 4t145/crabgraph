@@ -33,7 +33,7 @@ macro_rules! impl_for {
     (@impl $($T: ident)*) => {
         impl<$( $T, )* Fut, F, S> IntoNode<S, AsyncFunctionAdapter<($($T,)*), Fut, Result<(), crate::Error>>> for F
         where F: Fn($($T,)*) -> Fut + Clone + Send + Sync + 'static,
-        Fut: Future<Output = Result<(), crate::Error>> + Send + 'static,
+        Fut: Future<Output = Result<(), crate::NodeError>> + Send + 'static,
         S: Send + Sync + Clone + 'static,
         $( $T: FromRequest<S> + Send + 'static, )*
         {

@@ -29,6 +29,15 @@ where
     }
 }
 
+pub struct JsonValueView;
+
+impl View<crate::JsonObject> for JsonValueView {
+    type Data = crate::JsonValue;
+    fn view(self, target: &crate::JsonObject) -> Self::Data {
+        serde_json::Value::Object(target.clone())
+    }
+}
+
 // impl<S, T: DeserializeOwned> FromRequest<S> for Json<T> {
 //     fn from_request(request: &Request<S>) -> Result<Self, crate::Error> {
 //         let state = request.state.as_ref().clone().0;

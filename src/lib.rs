@@ -215,16 +215,15 @@ where
                         .get(&node_key)
                         .filter(|e| !e.is_empty())
                         .ok_or_else(|| GraphError::MissingOutEdge(node_key.clone()))?;
-                    // tracing::info!(%node_key, ?yield_state, "Node completed");
+                    tracing::info!(%node_key, "Node completed");
                     let request = request.clone();
                     for e in edges {
-                        for to_node_key in
-                            e.next_nodes(&request).await
-                                .map_err(|e| Error::ResolveNextNodesError {
-                                    error: Box::new(e),
-                                    node_key: node_key.clone(),
-                                })?
-                        {
+                        for to_node_key in e.next_nodes(&request).await.map_err(|e| {
+                            Error::ResolveNextNodesError {
+                                error: Box::new(e),
+                                node_key: node_key.clone(),
+                            }
+                        })? {
                             if to_node_key == NodeKey::End {
                             } else {
                                 let node = self.nodes.get(&to_node_key).ok_or_else(|| {
@@ -234,6 +233,7 @@ where
                                 let node_key = to_node_key.clone();
                                 task_set.spawn(async move {
                                     let result = fut.await;
+
                                     TaskCompleted { result, node_key }
                                 });
                             }
